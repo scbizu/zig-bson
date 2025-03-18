@@ -12,7 +12,7 @@ const Owned = @import("root.zig").Owned;
 /// * A 5-byte random value generated once per process. This random value is unique to the machine and process.
 /// * A 3-byte incrementing counter, initialized to a random value.
 /// https://www.mongodb.com/docs/manual/reference/bson-types/#objectid
-pub const ObjectId = struct {
+pub const objectId = struct {
     bytes: [12]u8,
 
     fn dupe(self: @This()) @This() {
@@ -48,9 +48,9 @@ pub const ObjectId = struct {
     }
 };
 
-test ObjectId {
+test "objectId" {
     const allocator = std.testing.allocator;
-    const objId = try ObjectId.fromHex("507f191e810c19729de860ea");
+    const objId = try objectId.fromHex("507f191e810c19729de860ea");
     try std.testing.expectEqual(504987472, objId.timestamp());
     const json = try std.json.stringifyAlloc(
         allocator,
@@ -63,7 +63,7 @@ test ObjectId {
     , json);
 }
 
-pub const Datetime = struct {
+pub const datetime = struct {
     millis: i64,
 
     pub fn dupe(self: @This()) @This() {
@@ -82,11 +82,11 @@ pub const Datetime = struct {
     }
 };
 
-test Datetime {
+test datetime {
     const allocator = std.testing.allocator;
     const json = try std.json.stringifyAlloc(
         allocator,
-        Datetime.fromMillis(1716919531350804),
+        datetime.fromMillis(1716919531350804),
         .{},
     );
     defer allocator.free(json);
@@ -95,7 +95,7 @@ test Datetime {
     , json);
 }
 
-pub const Regex = struct {
+pub const regex = struct {
     pattern: []const u8,
     options: []const u8,
 
@@ -121,7 +121,7 @@ pub const Regex = struct {
     }
 };
 
-pub const Timestamp = struct {
+pub const timestamp = struct {
     increment: u32,
     timestamp: u32,
 
@@ -129,8 +129,8 @@ pub const Timestamp = struct {
         return .{ .increment = self.increment, .timestamp = self.timestamp };
     }
 
-    pub fn init(increment: u32, timestamp: u32) @This() {
-        return .{ .increment = increment, .timestamp = timestamp };
+    pub fn init(increment: u32, ts: u32) @This() {
+        return .{ .increment = increment, .timestamp = ts };
     }
 
     pub fn jsonStringify(self: @This(), out: anytype) !void {
@@ -142,7 +142,7 @@ pub const Timestamp = struct {
     }
 };
 
-pub const MinKey = struct {
+pub const minKey = struct {
     pub fn jsonStringify(_: @This(), out: anytype) !void {
         try out.print(
             \\{{"$minKey":1}}
@@ -150,11 +150,11 @@ pub const MinKey = struct {
     }
 };
 
-test "MinKey.jsonStringify" {
+test "minKey.jsonStringify" {
     const allocator = std.testing.allocator;
     const json = try std.json.stringifyAlloc(
         allocator,
-        MinKey{},
+        minKey{},
         .{},
     );
     defer allocator.free(json);
@@ -163,7 +163,7 @@ test "MinKey.jsonStringify" {
     , json);
 }
 
-pub const MaxKey = struct {
+pub const maxKey = struct {
     pub fn jsonStringify(_: @This(), out: anytype) !void {
         try out.print(
             \\{{"$maxKey":1}}
@@ -171,11 +171,11 @@ pub const MaxKey = struct {
     }
 };
 
-test "MaxKey.jsonStringify" {
+test "maxKey.jsonStringify" {
     const allocator = std.testing.allocator;
     const json = try std.json.stringifyAlloc(
         allocator,
-        MaxKey{},
+        maxKey{},
         .{},
     );
     defer allocator.free(json);
@@ -184,7 +184,7 @@ test "MaxKey.jsonStringify" {
     , json);
 }
 
-pub const Document = struct {
+pub const document = struct {
     pub const Element = struct { []const u8, RawBson };
     elements: []const Element,
 
@@ -216,11 +216,11 @@ pub const Document = struct {
     pub fn dupe(self: @This(), allocator: std.mem.Allocator) !@This() {
         var elems = try allocator.alloc(Element, self.elements.len);
         for (self.elements, 0..) |e, i| elems[i] = .{ try allocator.dupe(u8, e.@"0"), try e.@"1".dupe(allocator) };
-        return Document.init(elems);
+        return document.init(elems);
     }
 };
 
-pub const Int64 = struct {
+pub const int64 = struct {
     value: i64,
 
     fn dupe(self: @This()) @This() {
@@ -235,7 +235,7 @@ pub const Int64 = struct {
 };
 
 /// https://github.com/mongodb/specifications/blob/master/source/bson-decimal128/decimal128.md
-pub const Decimal128 = struct {
+pub const decimal128 = struct {
     value: [16]u8,
 
     fn dupe(self: @This()) @This() {
@@ -255,7 +255,7 @@ pub const Decimal128 = struct {
     }
 };
 
-pub const Int32 = struct {
+pub const int32 = struct {
     value: i32,
 
     fn dupe(self: @This()) @This() {
@@ -269,7 +269,7 @@ pub const Int32 = struct {
     }
 };
 
-pub const Double = struct {
+pub const double = struct {
     value: f64,
     pub fn init(value: f64) @This() {
         return .{ .value = value };
@@ -300,7 +300,7 @@ pub const Double = struct {
     }
 };
 
-pub const JavaScript = struct {
+pub const javaScript = struct {
     value: []const u8,
 
     pub fn init(value: []const u8) @This() {
@@ -308,7 +308,7 @@ pub const JavaScript = struct {
     }
 
     fn dupe(self: @This(), allocator: std.mem.Allocator) !@This() {
-        return JavaScript.init(try allocator.dupe(u8, self.value));
+        return javaScript.init(try allocator.dupe(u8, self.value));
     }
 
     pub fn jsonStringify(self: @This(), out: anytype) !void {
@@ -319,9 +319,9 @@ pub const JavaScript = struct {
     }
 };
 
-pub const JavaScriptWithScope = struct {
+pub const javaScriptWithScope = struct {
     value: []const u8,
-    scope: Document,
+    scope: document,
 
     fn dupe(self: @This(), allocator: std.mem.Allocator) !@This() {
         return .{
@@ -342,9 +342,9 @@ pub const JavaScriptWithScope = struct {
 
 pub const DBPointer = struct {
     ref: []const u8,
-    id: ObjectId,
+    id: objectId,
 
-    pub fn init(ref: []const u8, id: ObjectId) @This() {
+    pub fn init(ref: []const u8, id: objectId) @This() {
         return .{ .ref = ref, .id = id };
     }
 
@@ -368,7 +368,7 @@ pub const DBPointer = struct {
     }
 };
 
-pub const Symbol = struct {
+pub const symbol = struct {
     value: []const u8,
 
     fn dupe(self: @This(), allocator: std.mem.Allocator) !@This() {
@@ -383,7 +383,7 @@ pub const Symbol = struct {
     }
 };
 
-pub const Binary = struct {
+pub const binary = struct {
     value: []const u8,
     subtype: SubType,
 
@@ -422,51 +422,51 @@ pub const Binary = struct {
 
 /// An enumeration of Bson types
 pub const RawBson = union(enum) {
-    double: Double,
+    double: double,
     string: []const u8,
-    document: Document,
+    document: document,
     array: []const RawBson,
     boolean: bool,
     null: void,
-    regex: Regex,
+    regex: regex,
     dbpointer: DBPointer,
-    javascript: JavaScript,
-    javascript_with_scope: JavaScriptWithScope,
-    int32: Int32,
-    int64: Int64,
+    javascript: javaScript,
+    javascript_with_scope: javaScriptWithScope,
+    int32: int32,
+    int64: int64,
     decimal128: Decimal128,
-    timestamp: Timestamp,
+    timestamp: timestamp,
     binary: Binary,
-    object_id: ObjectId,
-    datetime: Datetime,
+    object_id: objectId,
+    datetime: datetime,
     symbol: Symbol,
     undefined: void,
-    max_key: MaxKey,
-    min_key: MinKey,
+    max_key: maxKey,
+    min_key: minKey,
 
     pub fn dupe(self: @This(), allocator: std.mem.Allocator) error{OutOfMemory}!@This() {
         return switch (self) {
             .double => |v| .{ .double = Double.init(v.value) },
-            .string => |v| string(try allocator.dupe(u8, v)),
+            .string => |v| String(try allocator.dupe(u8, v)),
             .document => |v| .{ .document = try v.dupe(allocator) },
             .array => |v| blk: {
                 var copy = try allocator.alloc(RawBson, v.len);
                 for (v, 0..) |elem, i| copy[i] = try elem.dupe(allocator);
-                break :blk array(copy);
+                break :blk Array(copy);
             },
-            .boolean => |v| boolean(v),
-            .null => @"null"(),
+            .boolean => |v| Boolean(v),
+            .null => Null(),
             .regex => |v| .{ .regex = try v.dupe(allocator) },
             .dbpointer => |v| .{ .dbpointer = try v.dupe(allocator) },
             .javascript => |v| .{ .javascript = try v.dupe(allocator) },
             .javascript_with_scope => |v| .{ .javascript_with_scope = try v.dupe(allocator) },
-            .int32 => |v| .{ .int32 = v.dupe() },
-            .int64 => |v| .{ .int64 = v.dupe() },
-            .decimal128 => |v| .{ .decimal128 = v.dupe() },
-            .timestamp => |v| .{ .timestamp = v.dupe() },
+            .int32 => |v| .{ .int32 = Int32(v.dupe()) },
+            .int64 => |v| .{ .int64 = Int64(v.dupe()) },
+            .decimal128 => |v| .{ .decimal128 = Decimal128(v.dupe()) },
+            .timestamp => |v| .{ .timestamp = Timestamp(v.dupe()) },
             .binary => |v| .{ .binary = try v.dupe(allocator) },
-            .object_id => |v| .{ .object_id = v.dupe() },
-            .datetime => |v| .{ .datetime = v.dupe() },
+            .object_id => |v| .{ .object_id = ObjectId(v.dupe()) },
+            .datetime => |v| .{ .datetime = try v.dupe(allocator) },
             .symbol => |v| .{ .symbol = try v.dupe(allocator) },
             .undefined => RawBson.undefined(),
             .max_key => RawBson.maxKey(),
@@ -475,107 +475,107 @@ pub const RawBson = union(enum) {
     }
 
     /// convenience method for creating a new RawBson string
-    pub fn string(value: []const u8) @This() {
+    pub fn String(value: []const u8) @This() {
         return .{ .string = value };
     }
 
     /// convenience method for creating a new RawBson double
-    pub fn double(value: f64) @This() {
+    pub fn Double(value: f64) @This() {
         return .{ .double = Double.init(value) };
     }
 
     /// convenience method for creating a new RawBson decimal 128
-    pub fn decimal128(bytes: [16]u8) @This() {
+    pub fn Decimal128(bytes: [16]u8) @This() {
         return .{ .decimal128 = .{ .value = bytes } };
     }
 
     /// convenience method for creating a new RawBson boolean
-    pub fn boolean(value: bool) @This() {
+    pub fn Boolean(value: bool) @This() {
         return .{ .boolean = value };
     }
 
     /// convenience method for creating a new RawBson document
-    pub fn document(elements: []const Document.Element) @This() {
+    pub fn Document(elements: []const Document.Element) @This() {
         return .{ .document = Document.init(elements) };
     }
 
     /// convenience method for creating a new RawBson array
-    pub fn array(elements: []const RawBson) @This() {
+    pub fn Array(elements: []const RawBson) @This() {
         return .{ .array = elements };
     }
 
     /// convenience method for creating a new RawBson null
-    pub fn @"null"() @This() {
+    pub fn Null() @This() {
         return .{ .null = {} };
     }
 
     /// convenience method for creating a new RawBson undefined
-    pub fn @"undefined"() @This() {
+    pub fn Undefined() @This() {
         return .{ .undefined = {} };
     }
 
     /// convenience method for creating a new RawBson min key
-    pub fn minKey() @This() {
+    pub fn MinKey() @This() {
         return .{ .min_key = .{} };
     }
 
     /// convenience method for creating a new RawBson max key
-    pub fn maxKey() @This() {
+    pub fn MaxKey() @This() {
         return .{ .max_key = .{} };
     }
 
     /// convenience method for creating a new RawBson int64
-    pub fn int64(value: i64) @This() {
+    pub fn Int64(value: i64) @This() {
         return .{ .int64 = .{ .value = value } };
     }
 
     /// convenience method for creating a new RawBson int32
-    pub fn int32(value: i32) @This() {
+    pub fn Int32(value: i32) @This() {
         return .{ .int32 = .{ .value = value } };
     }
 
     /// convenience method for creating a new RawBson symbol
-    pub fn symbol(value: []const u8) @This() {
+    pub fn Symbol(value: []const u8) @This() {
         return .{ .symbol = .{ .value = value } };
     }
 
     /// convenience method for creating a new RawBson regex
-    pub fn regex(pattern: []const u8, options: []const u8) @This() {
+    pub fn Regex(pattern: []const u8, options: []const u8) @This() {
         return .{ .regex = .{ .pattern = pattern, .options = options } };
     }
 
     /// convenience method for creating a new RawBson timestamp
-    pub fn timestamp(increment: u32, ts: u32) @This() {
+    pub fn Timestamp(increment: u32, ts: u32) @This() {
         return .{ .timestamp = Timestamp.init(increment, ts) };
     }
 
     /// convenience method for creating a new RawBson javaScript
-    pub fn javaScript(value: []const u8) @This() {
+    pub fn JavaScript(value: []const u8) @This() {
         return .{ .javascript = JavaScript.init(value) };
     }
 
-    /// convenience method for creating a new RawBson javaScript (with scope)
-    pub fn javaScriptWithScope(value: []const u8, scope: Document) @This() {
+    /// convenience method for creating a new RawBson JavaScript (with scope)
+    pub fn JavaScriptWithScope(value: []const u8, scope: Document) @This() {
         return .{ .javascript_with_scope = .{ .value = value, .scope = scope } };
     }
 
-    /// convenience method for creating a new RawBson object id
-    pub fn objectId(bytes: [12]u8) @This() {
+    /// convenience method for creating a new RawBson ObjectId
+    pub fn ObjectId(bytes: [12]u8) @This() {
         return .{ .object_id = ObjectId.fromBytes(bytes) };
     }
 
     /// convenience method for creating a new RawBson object id
-    pub fn objectIdHex(encoded: []const u8) !@This() {
+    pub fn ObjectIdHex(encoded: []const u8) !@This() {
         return .{ .object_id = try ObjectId.fromHex(encoded) };
     }
 
     /// convenience method for creating a new RawBson datetime from millis since the epoch
-    pub fn datetime(millis: i64) @This() {
+    pub fn Datetime(millis: i64) @This() {
         return .{ .datetime = Datetime.fromMillis(millis) };
     }
 
     /// convenience method for creating a new RawBson binary
-    pub fn binary(bytes: []const u8, st: SubType) @This() {
+    pub fn Binary(bytes: []const u8, st: SubType) @This() {
         return .{ .binary = Binary.init(bytes, st) };
     }
 
@@ -1040,7 +1040,7 @@ test "RawBson.into" {
         },
     );
     const T = struct {
-        id: ObjectId,
+        id: objectId,
         str: []const u8,
         enu: Enum,
         i32: i32,
@@ -1050,13 +1050,13 @@ test "RawBson.into" {
         opt: ?bool,
         opt_present: ?bool,
         ary: []const i32,
-        doc: Document,
+        doc: document,
         raw: RawBson,
     };
     var into = try doc.into(allocator, T);
     defer into.deinit();
     try std.testing.expectEqualDeep(T{
-        .id = try ObjectId.fromHex("507f1f77bcf86cd799439011"),
+        .id = try objectId.fromHex("507f1f77bcf86cd799439011"),
         .str = "bar",
         .enu = .boom,
         .i32 = 1,
@@ -1066,7 +1066,7 @@ test "RawBson.into" {
         .opt = null,
         .opt_present = true,
         .ary = &.{ 1, 2, 3 },
-        .doc = Document.init(
+        .doc = document.init(
             &.{
                 .{ "foo", RawBson.string("bar") },
             },
@@ -1087,7 +1087,7 @@ test "RawBson.from" {
     var doc = try RawBson.from(allocator, .{
         .person = .{
             .str = "test",
-            .id = try ObjectId.fromHex("507f1f77bcf86cd799439011"),
+            .id = try objectId.fromHex("507f1f77bcf86cd799439011"),
             .opt = opt,
             .opt_present = opt_present,
             .comp_int = 1,
@@ -1129,7 +1129,7 @@ test "RawBson.from" {
 test "RawBson.jsonStringify" {
     const allocator = std.testing.allocator;
     const actual = try std.json.stringifyAlloc(allocator, RawBson{
-        .min_key = MinKey{},
+        .min_key = minKey{},
     }, .{});
     defer allocator.free(actual);
     try std.testing.expectEqualStrings(
