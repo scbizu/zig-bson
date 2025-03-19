@@ -40,10 +40,10 @@ pub fn Writer(comptime T: type) type {
                         buf.writer(),
                     );
                     for (v.elements) |elem| {
-                        try docWriter.writeInt(i8, elem.@"1".toType().toInt());
-                        _ = try docWriter.writeAll(elem.@"0");
+                        try docWriter.writeInt(i8, elem.value.toType().toInt());
+                        _ = try docWriter.writeAll(elem.name);
                         try docWriter.writeSentinelByte();
-                        try docWriter.write(elem.@"1");
+                        try docWriter.write(elem.value);
                     }
 
                     // we add 5 to account for 1. the 4 byte len itself and 2. 1 extra null byte at the end
@@ -76,7 +76,7 @@ pub fn Writer(comptime T: type) type {
                     try self.writeCStr(v.pattern);
                     try self.writeCStr(v.options);
                 },
-                .dbpointer => |v| {
+                .dbPointer => |v| {
                     try self.writeString(v.ref);
                     try self.write(.{ .object_id = v.id });
                 },
@@ -145,22 +145,22 @@ test Writer {
     var bsonWriter = writer(allocator, buf.writer());
     defer bsonWriter.deinit();
 
-    const doc = RawBson.document(
+    const doc = RawBson.Document(
         &.{
-            .{ "a", types.RawBson.string("a") },
-            .{ "b", types.RawBson.boolean(true) },
-            .{ "c", types.RawBson.minKey() },
-            .{ "d", types.RawBson.maxKey() },
-            .{ "e", types.RawBson.array(
+            .{ .name = "a", .value = types.RawBson.String("a") },
+            .{ .name = "b", .value = types.RawBson.Boolean(true) },
+            .{ .name = "c", .value = types.RawBson.MinKey() },
+            .{ .name = "d", .value = types.RawBson.MaxKey() },
+            .{ .name = "e", .value = types.RawBson.Array(
                 &[_]RawBson{
-                    RawBson.int32(10),
-                    RawBson.int32(11),
-                    RawBson.int32(12),
+                    RawBson.Int32(10),
+                    RawBson.Int32(11),
+                    RawBson.Int32(12),
                 },
             ) },
-            .{ "f", RawBson.datetime(0) },
-            .{ "g", RawBson.double(1.23) },
-            .{ "h", try RawBson.objectIdHex("56e1fc72e0c917e9c4714161") },
+            .{ .name = "f", .value = RawBson.Datetime(0) },
+            .{ .name = "g", .value = RawBson.Double(1.23) },
+            .{ .name = "h", .value = try RawBson.ObjectIdHex("56e1fc72e0c917e9c4714161") },
         },
     );
     try bsonWriter.write(doc);

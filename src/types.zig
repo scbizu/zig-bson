@@ -185,7 +185,7 @@ test "maxKey.jsonStringify" {
 }
 
 pub const document = struct {
-    pub const Element = struct { []const u8, RawBson };
+    pub const Element = struct { name: []const u8, value: RawBson };
     elements: []const Element,
 
     pub fn init(elements: []const Element) @This() {
@@ -194,8 +194,8 @@ pub const document = struct {
 
     pub fn get(self: @This(), name: []const u8) ?RawBson {
         for (self.elements) |e| {
-            if (std.mem.eql(u8, name, e.@"0")) {
-                return e.@"1";
+            if (std.mem.eql(u8, name, e.name)) {
+                return e.value;
             }
         }
         return null;
@@ -205,8 +205,8 @@ pub const document = struct {
         try out.beginObject();
 
         for (self.elements) |elem| {
-            try out.objectField(elem.@"0");
-            try out.write(elem.@"1");
+            try out.objectField(elem.name);
+            try out.write(elem.value);
         }
 
         try out.endObject();
@@ -215,7 +215,7 @@ pub const document = struct {
     // return a copy of this instance
     pub fn dupe(self: @This(), allocator: std.mem.Allocator) !@This() {
         var elems = try allocator.alloc(Element, self.elements.len);
-        for (self.elements, 0..) |e, i| elems[i] = .{ try allocator.dupe(u8, e.@"0"), try e.@"1".dupe(allocator) };
+        for (self.elements, 0..) |e, i| elems[i] = .{ .name = try allocator.dupe(u8, e.name), .value = try e.value.dupe(allocator) };
         return document.init(elems);
     }
 };
@@ -429,24 +429,24 @@ pub const RawBson = union(enum) {
     boolean: bool,
     null: void,
     regex: regex,
-    dbpointer: DBPointer,
+    dbPointer: DBPointer,
     javascript: javaScript,
     javascript_with_scope: javaScriptWithScope,
     int32: int32,
     int64: int64,
-    decimal128: Decimal128,
+    decimal128: decimal128,
     timestamp: timestamp,
-    binary: Binary,
+    binary: binary,
     object_id: objectId,
     datetime: datetime,
-    symbol: Symbol,
+    symbol: symbol,
     undefined: void,
     max_key: maxKey,
     min_key: minKey,
 
     pub fn dupe(self: @This(), allocator: std.mem.Allocator) error{OutOfMemory}!@This() {
         return switch (self) {
-            .double => |v| .{ .double = Double.init(v.value) },
+            .double => |v| .{ .double = double.init(v.value) },
             .string => |v| String(try allocator.dupe(u8, v)),
             .document => |v| .{ .document = try v.dupe(allocator) },
             .array => |v| blk: {
@@ -457,20 +457,20 @@ pub const RawBson = union(enum) {
             .boolean => |v| Boolean(v),
             .null => Null(),
             .regex => |v| .{ .regex = try v.dupe(allocator) },
-            .dbpointer => |v| .{ .dbpointer = try v.dupe(allocator) },
+            .dbPointer => |v| .{ .dbPointer = try v.dupe(allocator) },
             .javascript => |v| .{ .javascript = try v.dupe(allocator) },
             .javascript_with_scope => |v| .{ .javascript_with_scope = try v.dupe(allocator) },
-            .int32 => |v| .{ .int32 = Int32(v.dupe()) },
-            .int64 => |v| .{ .int64 = Int64(v.dupe()) },
-            .decimal128 => |v| .{ .decimal128 = Decimal128(v.dupe()) },
-            .timestamp => |v| .{ .timestamp = Timestamp(v.dupe()) },
+            .int32 => |v| .{ .int32 = v.dupe() },
+            .int64 => |v| .{ .int64 = v.dupe() },
+            .decimal128 => |v| .{ .decimal128 = v.dupe() },
+            .timestamp => |v| .{ .timestamp = v.dupe() },
             .binary => |v| .{ .binary = try v.dupe(allocator) },
-            .object_id => |v| .{ .object_id = ObjectId(v.dupe()) },
-            .datetime => |v| .{ .datetime = try v.dupe(allocator) },
+            .object_id => |v| .{ .object_id = v.dupe() },
+            .datetime => |v| .{ .datetime = v.dupe() },
             .symbol => |v| .{ .symbol = try v.dupe(allocator) },
-            .undefined => RawBson.undefined(),
-            .max_key => RawBson.maxKey(),
-            .min_key => RawBson.minKey(),
+            .undefined => RawBson.Undefined(),
+            .max_key => RawBson.MaxKey(),
+            .min_key => RawBson.MinKey(),
         };
     }
 
@@ -481,7 +481,7 @@ pub const RawBson = union(enum) {
 
     /// convenience method for creating a new RawBson double
     pub fn Double(value: f64) @This() {
-        return .{ .double = Double.init(value) };
+        return .{ .double = double.init(value) };
     }
 
     /// convenience method for creating a new RawBson decimal 128
@@ -495,8 +495,8 @@ pub const RawBson = union(enum) {
     }
 
     /// convenience method for creating a new RawBson document
-    pub fn Document(elements: []const Document.Element) @This() {
-        return .{ .document = Document.init(elements) };
+    pub fn Document(elements: []const document.Element) @This() {
+        return .{ .document = document.init(elements) };
     }
 
     /// convenience method for creating a new RawBson array
@@ -546,37 +546,37 @@ pub const RawBson = union(enum) {
 
     /// convenience method for creating a new RawBson timestamp
     pub fn Timestamp(increment: u32, ts: u32) @This() {
-        return .{ .timestamp = Timestamp.init(increment, ts) };
+        return .{ .timestamp = timestamp.init(increment, ts) };
     }
 
     /// convenience method for creating a new RawBson javaScript
     pub fn JavaScript(value: []const u8) @This() {
-        return .{ .javascript = JavaScript.init(value) };
+        return .{ .javascript = javaScript.init(value) };
     }
 
     /// convenience method for creating a new RawBson JavaScript (with scope)
-    pub fn JavaScriptWithScope(value: []const u8, scope: Document) @This() {
+    pub fn JavaScriptWithScope(value: []const u8, scope: document) @This() {
         return .{ .javascript_with_scope = .{ .value = value, .scope = scope } };
     }
 
     /// convenience method for creating a new RawBson ObjectId
     pub fn ObjectId(bytes: [12]u8) @This() {
-        return .{ .object_id = ObjectId.fromBytes(bytes) };
+        return .{ .object_id = objectId.fromBytes(bytes) };
     }
 
     /// convenience method for creating a new RawBson object id
     pub fn ObjectIdHex(encoded: []const u8) !@This() {
-        return .{ .object_id = try ObjectId.fromHex(encoded) };
+        return .{ .object_id = try objectId.fromHex(encoded) };
     }
 
     /// convenience method for creating a new RawBson datetime from millis since the epoch
     pub fn Datetime(millis: i64) @This() {
-        return .{ .datetime = Datetime.fromMillis(millis) };
+        return .{ .datetime = datetime.fromMillis(millis) };
     }
 
     /// convenience method for creating a new RawBson binary
     pub fn Binary(bytes: []const u8, st: SubType) @This() {
-        return .{ .binary = Binary.init(bytes, st) };
+        return .{ .binary = binary.init(bytes, st) };
     }
 
     /// Derives a RawBson type from native zig types. Typically callers pass in a struct
@@ -603,31 +603,31 @@ pub const RawBson = union(enum) {
                 owned.value = data;
                 return owned;
             },
-            Document => {
+            document => {
                 owned.value = RawBson{ .document = data };
                 return owned;
             },
-            Regex => {
+            regex => {
                 owned.value = RawBson{ .regex = data };
                 return owned;
             },
-            Decimal128 => {
+            decimal128 => {
                 owned.value = RawBson{ .decimal128 = data };
                 return owned;
             },
-            Timestamp => {
+            timestamp => {
                 owned.value = RawBson{ .timestamp = data };
                 return owned;
             },
-            Binary => {
+            binary => {
                 owned.value = RawBson{ .binary = data };
                 return owned;
             },
-            ObjectId => {
+            objectId => {
                 owned.value = RawBson{ .object_id = data };
                 return owned;
             },
-            Datetime => {
+            datetime => {
                 owned.value = RawBson{ .datetime = data };
                 return owned;
             },
@@ -636,77 +636,77 @@ pub const RawBson = union(enum) {
 
         const info = @typeInfo(dataType);
         owned.value = switch (info) {
-            .Struct => |v| blk: {
-                var fields = try owned.arena.allocator().alloc(Document.Element, v.fields.len);
+            .@"struct" => |v| blk: {
+                var fields = try owned.arena.allocator().alloc(document.Element, v.fields.len);
                 inline for (v.fields, 0..) |field, i| {
                     // pass along this arena's allocator
                     fields[i] = .{
-                        field.name,
-                        (try from(owned.arena.allocator(), @field(data, field.name))).value,
+                        .name = field.name,
+                        .value = (try from(owned.arena.allocator(), @field(data, field.name))).value,
                     };
                 }
-                break :blk RawBson.document(fields);
+                break :blk RawBson.Document(fields);
             },
-            .Optional => blk: {
+            .optional => blk: {
                 if (data) |d| {
                     break :blk (try from(owned.arena.allocator(), d)).value;
                 } else {
-                    break :blk RawBson.null();
+                    break :blk RawBson.Null();
                 }
             },
-            .Bool => RawBson.boolean(data),
-            .Enum => RawBson.string(@tagName(data)),
-            .ComptimeInt => RawBson.int32(data),
-            .Int => |v| blk: {
+            .bool => RawBson.Boolean(data),
+            .@"enum" => RawBson.String(@tagName(data)),
+            .int => |v| blk: {
                 if (v.signedness == .unsigned) {
                     std.debug.print("unsigned integers not yet supported\n", .{});
                     return error.UnsupportedType;
                 }
                 switch (v.bits) {
-                    0...32 => break :blk RawBson.int32(@intCast(data)),
-                    33...64 => break :blk RawBson.int64(@intCast(data)),
+                    0...32 => break :blk RawBson.Int32(@intCast(data)),
+                    33...64 => break :blk RawBson.Int64(@intCast(data)),
                     else => |otherwise| {
                         std.debug.print("{d} width ints not yet supported\n", .{otherwise});
                         return error.UnsupportedType;
                     },
                 }
             },
-            .ComptimeFloat => RawBson.double(data),
-            .Float => |v| blk: {
+            .comptime_int => RawBson.Int32(data),
+            .comptime_float => RawBson.Double(data),
+            .float => |v| blk: {
                 switch (v.bits) {
-                    1...63 => break :blk RawBson.double(@floatCast(data)),
-                    64 => break :blk RawBson.double(data),
+                    1...63 => break :blk RawBson.Double(@floatCast(data)),
+                    64 => break :blk RawBson.Double(data),
                     else => |otherwise| {
                         std.debug.print("{d} width floats not yet supported\n", .{otherwise});
                         return error.UnsupportedType;
                     },
                 }
             },
-            .Array => |v| blk: {
+            .array => |v| blk: {
                 // if array of u8, assume a string
                 if (v.child == u8) {
-                    break :blk RawBson.string(try owned.arena.allocator().dupe(u8, &data));
+                    break :blk RawBson.String(try owned.arena.allocator().dupe(u8, &data));
                 }
                 var elements = try owned.arena.allocator().alloc(RawBson, v.len);
                 for (data, 0..) |elem, i| {
                     elements[i] = (try from(owned.arena.allocator(), elem)).value;
                 }
-                break :blk RawBson.array(elements);
+                break :blk RawBson.Array(elements);
             },
-            .Pointer => |v| blk: {
+            .pointer => |v| blk: {
                 switch (v.size) {
                     //*[]u8 { ... }
-                    .Slice => {
+                    .slice => {
                         if (v.child == u8) {
-                            break :blk RawBson.string(try owned.arena.allocator().dupe(u8, data));
+                            break :blk RawBson.String(try owned.arena.allocator().dupe(u8, data));
                         }
                         var elements = try std.ArrayList(RawBson).init(owned.arena.allocator());
                         for (data) |elem| {
                             try elements.append((try from(owned.arena.allocator(), elem)).value);
                         }
-                        break :blk RawBson.array(try elements.toOwnedSlice());
+                        break :blk RawBson.Array(try elements.toOwnedSlice());
                     },
-                    .One => break :blk (try from(owned.arena.allocator(), data.*)).value,
+                    .one => break :blk (try from(owned.arena.allocator(), data.*)).value,
                     else => |otherwise| {
                         std.debug.print("{any} pointer types not yet supported\n", .{otherwise});
                         return error.UnsupportedType;
@@ -748,49 +748,49 @@ pub const RawBson = union(enum) {
                 owned.value = try self.dupe(owned.arena.allocator());
                 return owned;
             },
-            Document => switch (self) {
+            document => switch (self) {
                 .document => |v| {
                     owned.value = try v.dupe(owned.arena.allocator());
                     return owned;
                 },
                 else => return error.IncompatibleBsonType,
             },
-            Regex => switch (self) {
+            regex => switch (self) {
                 .regex => |v| {
                     owned.value = try v.dupe(owned.arena.allocator());
                     return owned;
                 },
                 else => return error.IncompatibleBsonType,
             },
-            Decimal128 => switch (self) {
+            decimal128 => switch (self) {
                 .decimal128 => |v| {
                     owned.value = try v.dupe(owned.arena.allocator());
                     return owned;
                 },
                 else => return error.IncompatibleBsonType,
             },
-            Timestamp => switch (self) {
+            timestamp => switch (self) {
                 .timestamp => |v| {
                     owned.value = try v.dupe(owned.arena.allocator());
                     return owned;
                 },
                 else => return error.IncompatibleBsonType,
             },
-            Binary => switch (self) {
+            binary => switch (self) {
                 .binary => |v| {
                     owned.value = try v.dupe(owned.arena.allocator());
                     return owned;
                 },
                 else => return error.IncompatibleBsonType,
             },
-            ObjectId => switch (self) {
+            objectId => switch (self) {
                 .object_id => |v| {
                     owned.value = v.dupe();
                     return owned;
                 },
                 else => return error.IncompatibleBsonType,
             },
-            Datetime => switch (self) {
+            datetime => switch (self) {
                 .datetime => |v| {
                     owned.value = v.dupe();
                     return owned;
@@ -801,21 +801,21 @@ pub const RawBson = union(enum) {
         }
 
         owned.value = switch (@typeInfo(T)) {
-            .Struct => |v| blk: {
+            .@"struct" => |v| blk: {
                 switch (self) {
                     .document => |doc| {
                         var parsed: T = undefined;
                         inline for (v.fields) |field| {
                             if (doc.get(field.name)) |value| {
                                 const ftype = switch (@typeInfo(field.type)) {
-                                    .Optional => |o| o.child,
+                                    .optional => |o| o.child,
                                     else => field.type,
                                 };
                                 @field(parsed, field.name) = (try value.into(owned.arena.allocator(), ftype)).value;
-                            } else if (field.default_value) |default| {
+                            } else if (field.defaultValue()) |default| {
                                 const dvalue_aligned: *align(field.alignment) const anyopaque = @alignCast(default);
                                 @field(parsed, field.name) = @as(*const field.type, @ptrCast(dvalue_aligned)).*;
-                            } else if (@typeInfo(field.type) == .Optional) {
+                            } else if (@typeInfo(field.type) == .optional) {
                                 @field(parsed, field.name) = null;
                             } else {
                                 return error.UnresolvedValue;
@@ -826,13 +826,13 @@ pub const RawBson = union(enum) {
                     else => return error.IncompatibleBsonType,
                 }
             },
-            .Bool => blk: {
+            .bool => blk: {
                 switch (self) {
                     .boolean => |b| break :blk b,
                     else => return error.IncompatibleBsonType,
                 }
             },
-            .Enum => |v| blk: {
+            .@"enum" => |v| blk: {
                 switch (self) {
                     .string => |s| {
                         inline for (v.fields, 0..) |field, i| {
@@ -845,13 +845,13 @@ pub const RawBson = union(enum) {
                     else => return error.IncompatibleBsonType,
                 }
             },
-            .ComptimeInt => blk: {
+            .comptime_int => blk: {
                 switch (self) {
                     .int32 => |v| break :blk v.value,
                     else => return error.IncompatibleBsonType,
                 }
             },
-            .Int => |v| blk: {
+            .int => |v| blk: {
                 if (v.signedness == .unsigned) {
                     std.debug.print("unsigned integers not yet supported\n", .{});
                     break :blk error.UnsupportedType;
@@ -875,13 +875,13 @@ pub const RawBson = union(enum) {
                     },
                 }
             },
-            .ComptimeFloat => blk: {
+            .comptime_float => blk: {
                 switch (self) {
                     .double => |d| break :blk @floatCast(d.value),
                     else => return error.IncompatibleBsonType,
                 }
             },
-            .Float => |v| blk: {
+            .float => |v| blk: {
                 switch (v.bits) {
                     1...63 => {
                         switch (self) {
@@ -901,9 +901,9 @@ pub const RawBson = union(enum) {
                     },
                 }
             },
-            .Pointer => |v| blk: {
+            .pointer => |v| blk: {
                 switch (v.size) {
-                    .Slice => {
+                    .slice => {
                         if (v.child == u8) {
                             switch (self) {
                                 .string => |s| break :blk try owned.arena.allocator().dupe(u8, s),
@@ -947,7 +947,7 @@ pub const RawBson = union(enum) {
             .boolean => .boolean,
             .null => .null,
             .regex => .regex,
-            .dbpointer => .dbpointer,
+            .dbPointer => .dbPointer,
             .javascript => .javascript,
             .javascript_with_scope => .javascript_with_scope,
             .int32 => .int32,
@@ -979,7 +979,7 @@ pub const RawBson = union(enum) {
             .regex => |v| out.write(v),
             .javascript => |v| out.write(v),
             .javascript_with_scope => |v| out.write(v),
-            .dbpointer => |v| out.write(v),
+            .dbPointer => |v| out.write(v),
             .symbol => |v| out.write(v),
             .int32 => |v| out.write(v),
             .timestamp => |v| out.write(v),
@@ -1020,23 +1020,23 @@ test "RawBson.into" {
         boom,
         doom,
     };
-    var doc = RawBson.document(
+    var doc = RawBson.Document(
         &.{
-            .{ "id", try RawBson.objectIdHex("507f1f77bcf86cd799439011") },
-            .{ "str", RawBson.string("bar") },
-            .{ "enu", RawBson.string("boom") },
-            .{ "i32", RawBson.int32(1) },
-            .{ "i64", RawBson.int64(2) },
-            .{ "f64", RawBson.double(1.5) },
-            .{ "bool", RawBson.boolean(true) },
-            .{ "opt_present", RawBson.boolean(true) },
-            .{ "ary", RawBson.array(&.{ RawBson.int32(1), RawBson.int32(2), RawBson.int32(3) }) },
-            .{ "doc", RawBson.document(
+            .{ .name = "id", .value = try RawBson.ObjectIdHex("507f1f77bcf86cd799439011") },
+            .{ .name = "str", .value = RawBson.String("bar") },
+            .{ .name = "enu", .value = RawBson.String("boom") },
+            .{ .name = "i32", .value = RawBson.Int32(1) },
+            .{ .name = "i64", .value = RawBson.Int64(2) },
+            .{ .name = "f64", .value = RawBson.Double(1.5) },
+            .{ .name = "bool", .value = RawBson.Boolean(true) },
+            .{ .name = "opt_present", .value = RawBson.Boolean(true) },
+            .{ .name = "ary", .value = RawBson.Array(&.{ RawBson.Int32(1), RawBson.Int32(2), RawBson.Int32(3) }) },
+            .{ .name = "doc", .value = RawBson.Document(
                 &.{
-                    .{ "foo", RawBson.string("bar") },
+                    .{ .name = "foo", .value = RawBson.String("bar") },
                 },
             ) },
-            .{ "raw", RawBson.string("raw") },
+            .{ .name = "raw", .value = RawBson.String("raw") },
         },
     );
     const T = struct {
@@ -1068,10 +1068,10 @@ test "RawBson.into" {
         .ary = &.{ 1, 2, 3 },
         .doc = document.init(
             &.{
-                .{ "foo", RawBson.string("bar") },
+                .{ .name = "foo", .value = RawBson.String("bar") },
             },
         ),
-        .raw = RawBson.string("raw"),
+        .raw = RawBson.String("raw"),
     }, into.value);
 }
 
@@ -1105,23 +1105,24 @@ test "RawBson.from" {
     });
     defer doc.deinit();
     // std.debug.print("doc {s}\n", .{doc.value});
-    try std.testing.expectEqualDeep(doc.value, RawBson.document(&.{.{
-        "person", RawBson.document(&.{
-            .{ "str", RawBson.string("test") },
-            .{ "id", try RawBson.objectIdHex("507f1f77bcf86cd799439011") },
-            .{ "opt", RawBson.null() },
-            .{ "opt_present", RawBson.string("opt_present") },
-            .{ "comp_int", RawBson.int32(1) },
-            .{ "i16", RawBson.int32(2) },
-            .{ "i32", RawBson.int32(2) },
-            .{ "i64", RawBson.int64(3) },
-            .{ "ary", RawBson.array(&[_]RawBson{ RawBson.int32(4), RawBson.int32(5), RawBson.int32(6) }) },
-            .{ "slice", RawBson.array(&[_]RawBson{ RawBson.int32(1), RawBson.int32(2), RawBson.int32(3) }) },
-            .{ "bool", RawBson.boolean(true) },
-            .{ "comp_float", RawBson.double(3.2) },
-            .{ "float32", RawBson.double(@floatCast(@as(f32, 3.2))) },
-            .{ "float64", RawBson.double(3.2) },
-            .{ "enu", RawBson.string("a") },
+    try std.testing.expectEqualDeep(doc.value, RawBson.Document(&.{.{
+        .name = "person",
+        .value = RawBson.Document(&.{
+            .{ .name = "str", .value = RawBson.String("test") },
+            .{ .name = "id", .value = try RawBson.ObjectIdHex("507f1f77bcf86cd799439011") },
+            .{ .name = "opt", .value = RawBson.Null() },
+            .{ .name = "opt_present", .value = RawBson.String("opt_present") },
+            .{ .name = "comp_int", .value = RawBson.Int32(1) },
+            .{ .name = "i16", .value = RawBson.Int32(2) },
+            .{ .name = "i32", .value = RawBson.Int32(2) },
+            .{ .name = "i64", .value = RawBson.Int64(3) },
+            .{ .name = "ary", .value = RawBson.Array(&[_]RawBson{ RawBson.Int32(4), RawBson.Int32(5), RawBson.Int32(6) }) },
+            .{ .name = "slice", .value = RawBson.Array(&[_]RawBson{ RawBson.Int32(1), RawBson.Int32(2), RawBson.Int32(3) }) },
+            .{ .name = "bool", .value = RawBson.Boolean(true) },
+            .{ .name = "comp_float", .value = RawBson.Double(3.2) },
+            .{ .name = "float32", .value = RawBson.Double(@floatCast(@as(f32, 3.2))) },
+            .{ .name = "float64", .value = RawBson.Double(3.2) },
+            .{ .name = "enu", .value = RawBson.String("a") },
         }),
     }}));
 }
@@ -1153,7 +1154,7 @@ pub const Type = enum(i8) {
     null = 0x0a,
     regex = 0x0b,
     /// deprecated
-    dbpointer = 0x0c,
+    dbPointer = 0x0c,
     javascript = 0x0d,
     /// deprecated
     symbol = 0x0e,
